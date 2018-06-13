@@ -1,0 +1,294 @@
+no service pad
+service tcp-keepalives-in
+service tcp-keepalives-out
+service timestamps debug datetime msec localtime show-timezone
+service timestamps log datetime msec localtime show-timezone
+service password-encryption
+service sequence-numbers
+!
+hostname lab208-200-201-225
+!
+boot-start-marker
+boot-end-marker
+!
+security authentication failure rate 3 log
+security passwords min-length 6
+logging message-counter syslog
+logging buffered 51200 informational
+!
+aaa new-model
+!
+!
+aaa authentication login default group tacacs+ local enable
+aaa authorization exec default group tacacs+ local if-authenticated
+aaa authorization commands 1 default group tacacs+ local if-authenticated
+aaa authorization commands 15 default group tacacs+ local if-authenticated
+aaa accounting commands 1 default
+ action-type start-stop
+ broadcast
+ group tacacs+
+!
+aaa accounting commands 15 default
+ action-type start-stop
+ broadcast
+ group tacacs+
+!
+!
+!
+aaa session-id common
+clock timezone EST -5
+clock summer-time EST recurring
+!
+!
+dot11 syslog
+ip source-route
+!
+!
+no ip dhcp use vrf connected
+ip dhcp excluded-address 172.24.200.1 172.24.200.10
+ip dhcp excluded-address 172.24.201.1 172.24.201.10
+ip dhcp excluded-address 172.24.225.1 172.24.225.10
+!
+ip dhcp pool 225
+   network 172.24.225.0 255.255.255.0
+   domain-name chick-fil-a.com
+   default-router 172.24.225.1
+   dns-server 10.11.10.29
+   lease 4
+!
+ip dhcp pool 200
+   network 172.24.200.0 255.255.255.0
+   domain-name chick-fil-a.com
+   default-router 172.24.200.1
+   dns-server 10.11.10.29
+   lease 4
+!
+ip dhcp pool 201
+   network 172.24.201.0 255.255.255.0
+   domain-name chick-fil-a.com
+   default-router 172.24.201.1
+   dns-server 10.11.10.29
+   lease 4
+!
+!
+ip cef
+no ip domain lookup
+ip domain name chick-fil-a.com
+ip name-server 10.11.10.29
+ip name-server 10.11.10.34
+no ipv6 cef
+ntp source Vlan1
+ntp server 10.16.1.52
+!
+multilink bundle-name authenticated
+!
+!
+!
+username secadmin privilege 15 secret 5 $1$.ZAA$HEoKFXTVC1WuQzvJjXtye1
+!
+!
+!
+archive
+ log config
+  hidekeys
+!
+!
+ip tcp synwait-time 10
+ip tftp source-interface Vlan1
+!
+track 1 ip sla 1 reachability
+ delay down 60 up 60
+!
+track 3 ip sla 3 reachability
+ delay down 15 up 15
+!
+buffers middle permanent 50
+!
+!
+interface Tunnel1999
+ ip address 192.168.192.69 255.255.240.0
+ ip mtu 1400
+ ip nhrp authentication test
+ ip nhrp map 192.168.192.1 172.30.254.255
+ ip nhrp network-id 100001
+ ip nhrp holdtime 300
+ ip nhrp nhs 192.168.192.1
+ delay 1000
+ keepalive 10 3
+ tunnel source FastEthernet4
+ tunnel destination 172.30.254.255
+ tunnel key 100001
+!
+interface FastEthernet0
+ switchport access vlan 2
+ no cdp enable
+!
+interface FastEthernet1
+ switchport access vlan 2
+ no cdp enable
+!
+interface FastEthernet2
+ no cdp enable
+!
+interface FastEthernet3
+ no cdp enable
+!
+interface FastEthernet4
+ description ----WAN SIDE----
+ ip address 172.31.21.222 255.255.255.252
+ ip access-group 121 in
+ ip access-group 122 out
+ no ip redirects
+ no ip proxy-arp
+ ip flow ingress
+ duplex auto
+ speed auto
+ no cdp enable
+!
+interface Vlan1
+ description ----LAN SIDE---200
+ ip address 172.24.200.1 255.255.255.0
+ ip flow ingress
+ ip tcp adjust-mss 1360
+!
+interface Vlan2
+ description ---LAN SIDE---201
+ ip address 172.24.201.1 255.255.255.0
+ ip flow ingress
+ ip tcp adjust-mss 1452
+!
+interface Vlan3
+ description ---LAN SIDE---225
+ ip address 172.24.225.1 255.255.255.0
+ ip flow ingress
+ ip tcp adjust-mss 1452
+ shutdown
+!
+router eigrp 1
+ redistribute connected
+ network 192.168.192.0 0.0.15.255
+ no auto-summary
+!
+router rip
+ version 2
+ redistribute connected
+ network 172.31.0.0
+ no auto-summary
+!
+ip local policy route-map HEALTH_CHECK
+ip forward-protocol nd
+ip route 0.0.0.0 0.0.0.0 172.31.21.221 200 track 1
+ip route 204.194.138.10 255.255.255.255 172.24.200.4 track 3
+ip route 0.0.0.0 0.0.0.0 Tunnel1999
+ip route 10.0.0.0 255.0.0.0 Tunnel1999
+ip route 172.30.254.254 255.255.255.255 172.31.21.221
+ip route 172.30.254.255 255.255.255.255 172.31.21.221
+ip route 192.168.0.0 255.255.0.0 Tunnel1999
+no ip http server
+no ip http secure-server
+!
+!
+ip tacacs source-interface Vlan1
+!
+ip sla 1
+ icmp-echo 1.1.1.1 source-interface FastEthernet4
+ timeout 2000
+ frequency 5
+ip sla schedule 1 life forever start-time now
+ip sla 3
+ icmp-echo 172.24.200.4 source-interface Vlan1
+ timeout 2000
+ frequency 5
+ip sla schedule 3 life forever start-time now
+logging facility local3
+logging source-interface Vlan1
+logging 10.16.1.53
+logging 10.10.30.197
+access-list 121 permit tcp any any established
+access-list 121 permit gre any any
+access-list 121 permit ip 10.0.0.0 0.255.255.255 any
+access-list 121 permit ip 192.168.160.0 0.0.0.255 any
+access-list 121 permit icmp any any
+access-list 121 permit udp any any gt 1023
+access-list 121 permit tcp any any eq telnet
+access-list 121 permit tcp any any eq 22
+access-list 121 permit udp any any eq bootpc
+access-list 121 permit esp any any
+access-list 121 permit udp any any eq isakmp
+access-list 121 deny   ip any any log
+access-list 122 deny   ip any 172.16.0.0 0.7.255.255 log
+access-list 122 deny   ip any 172.28.0.0 0.0.255.255 log
+access-list 122 deny   ip any 172.29.0.0 0.0.255.255 log
+access-list 122 permit ip any any
+access-list 123 deny   icmp any any
+access-list 123 deny   ip any 172.16.0.0 0.7.255.255 log
+access-list 123 deny   ip any 172.24.0.0 0.3.255.255 log
+access-list 123 deny   ip any 172.28.0.0 0.0.255.255 log
+access-list 123 deny   ip any 172.29.0.0 0.0.255.255 log
+access-list 123 deny   ip any host 12.35.100.95 log
+access-list 123 permit ip any any
+access-list 131 deny   ip 172.16.0.0 0.7.255.255 any log
+access-list 131 deny   ip 172.24.0.0 0.3.255.255 any log
+access-list 131 deny   ip 172.28.0.0 0.0.255.255 any log
+access-list 131 deny   ip 172.29.0.0 0.0.255.255 any log
+access-list 131 permit ip any any
+access-list 132 permit tcp any any established
+access-list 132 permit ip 172.29.254.0 0.0.0.3 172.29.254.0 0.0.0.3
+access-list 132 deny   ip any host 10.16.1.59 log
+access-list 132 deny   ip any 172.16.0.0 0.7.255.255 log
+access-list 132 deny   ip any 172.28.0.0 0.0.255.255 log
+access-list 132 deny   ip any 172.29.0.0 0.0.255.255 log
+access-list 132 permit ip any any
+access-list 140 permit icmp any host 1.1.1.1 echo
+access-list 141 permit icmp any host 192.168.160.2 echo
+access-list 142 permit icmp any host 204.194.138.10 echo
+access-list 192 permit ip 192.168.0.0 0.0.255.255 any log
+access-list 192 permit ip any any
+no cdp run
+
+!
+!
+!
+!
+route-map HEALTH_CHECK permit 10
+ match ip address 140
+ set ip next-hop 172.31.21.221
+!
+route-map HEALTH_CHECK permit 30
+ match ip address 142
+ set ip next-hop 172.24.200.4
+!
+snmp-server community h1sp33d RO
+snmp-server community rx755zu RW
+snmp-server location QA FSU-cybera (CFA3LABCYBERA)
+snmp-server contact WAN Team
+snmp-server chassis-id 90060_primary Cisco 871
+snmp-server enable traps snmp authentication linkdown linkup coldstart warmstart
+
+snmp-server enable traps cpu threshold
+snmp-server enable traps ipsla
+snmp-server host 10.10.30.108 cfa5200  cpu ipsla snmp
+tacacs-server host 10.11.8.19
+tacacs-server directed-request
+tacacs-server key 7 091E6F5D4F27314A525F550E7A06706A1476352640562007010F07762B26
+
+!
+control-plane
+!
+banner login ^CC
+Chick-fil-A Authorized access only!
+Unauthorized access is STRICTLY prohibited!
+
+^C
+!
+line con 0
+ exec-timeout 5 0
+ no modem enable
+line aux 0
+ exec-timeout 5 0
+line vty 0 4
+ transport input telnet ssh
+!
+scheduler max-task-time 5000
+scheduler interval 500
+end
