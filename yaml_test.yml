@@ -1,0 +1,20 @@
+- 0
+- 1
+- 2
+- 3
+- 4
+- 5
+- 6
+- 7
+- 8
+- 9
+- !!python/unicode 'Hello'
+- !!python/unicode 'Another Word'
+- !!python/unicode 'attribs':
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  !!python/unicode 'attribs2': !!python/unicode 'more attribs'
+  !!python/unicode 'ip.addr': !!python/unicode '10.10.10.240'
